@@ -1,0 +1,59 @@
+# Lab 03 — Triggers, filters, concurrency
+# Copy to: .github/workflows/ci.yml (replaces lab 02)
+#
+# Three additions: path filtering so docs edits do not burn CI minutes,
+# concurrency so a new push cancels the stale run, and a workflow-level
+# permissions block that strips the token down to read-only.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Run pytest with -vv'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  test:
+    # Skip draft PRs, but still run on push and manual dispatch.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest ${{ inputs.verbose && '-vv' || '' }}
+
+      - name: Lint
+        run: ruff check .

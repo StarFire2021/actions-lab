@@ -1,0 +1,43 @@
+# Lab 01 — Hello, Actions
+# Copy to: .github/workflows/hello.yml
+#
+# Goal: see the trigger -> runner -> log loop with nothing else in the way.
+# There is no checkout here on purpose: this workflow never touches your code.
+
+name: Hello
+
+on:
+  workflow_dispatch:
+
+jobs:
+  say-hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print a greeting
+        run: echo "Hello from a runner that will not exist in 30 seconds."
+
+      - name: Prove the shell is a real shell
+        run: |
+          echo "user:    $(whoami)"
+          echo "cwd:     $(pwd)"
+          echo "kernel:  $(uname -r)"
+          echo "cores:   $(nproc)"
+          echo "disk:    $(df -h / | tail -1 | awk '{print $4}') free"
+
+      - name: Prove the workspace is empty
+        run: ls -la
+
+      - name: Look at the github context
+        run: |
+          echo "event:      ${{ github.event_name }}"
+          echo "repo:       ${{ github.repository }}"
+          echo "ref:        ${{ github.ref }}"
+          echo "ref_name:   ${{ github.ref_name }}"
+          echo "sha:        ${{ github.sha }}"
+          echo "actor:      ${{ github.actor }}"
+          echo "run_number: ${{ github.run_number }}"
+
+      - name: Dump the whole context as JSON
+        run: echo "$CONTEXT"
+        env:
+          CONTEXT: ${{ toJSON(github) }}

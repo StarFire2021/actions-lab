@@ -1,0 +1,96 @@
+# Lab 06 — Artifacts, job dependencies, and job outputs
+# Copy to: .github/workflows/report.yml
+#
+# The whole point: jobs do NOT share a filesystem. To move a file from
+# one job to another you must upload it and download it again.
+
+name: Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 13:30 UTC on weekdays. Remember: schedules only fire from the
+    # default branch, and GitHub does not guarantee punctuality.
+    - cron: '30 13 * * 1-5'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      # Promote a step output to a job output so downstream jobs can read it.
+      drawdown: ${{ steps.calc.outputs.drawdown }}
+      stamp: ${{ steps.calc.outputs.stamp }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - run: pip install -e ".[dev]"
+
+      - name: Build the report
+        id: calc
+        run: |
+          mkdir -p reports
+          pricekit data/sample_prices.csv -o reports/summary.md
+          DD=$(python -c "
+          import csv
+          from pricekit.core import max_drawdown
+          rows = list(csv.DictReader(open('data/sample_prices.csv')))
+          print(f\"{max_drawdown([float(r['close']) for r in rows]):.4f}\")
+          ")
+          echo "drawdown=$DD" >> "$GITHUB_OUTPUT"
+          echo "stamp=$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the report
+        uses: actions/upload-artifact@v7
+        with:
+          name: price-report
+          path: reports/
+          retention-days: 7
+          if-no-files-found: error
+
+      # Runs only when something above failed. Invaluable for debugging
+      # a runner you cannot SSH into.
+      - name: Upload debug info on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-${{ github.run_id }}
+          path: |
+            reports/
+            *.log
+          if-no-files-found: ignore
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read the upstream job output
+        run: echo "Max drawdown was ${{ needs.build.outputs.drawdown }}"
+
+      - name: Fetch the artifact from the other job
+        uses: actions/download-artifact@v8
+        with:
+          name: price-report
+          path: incoming/
+
+      - name: Show what arrived
+        run: |
+          ls -la incoming/
+          cat incoming/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Gate on the drawdown
+        run: |
+          python - <<'PY'
+          import os, sys
+          dd = float("${{ needs.build.outputs.drawdown }}")
+          print(f"drawdown={dd:.2%}")
+          if dd > 0.25:
+              sys.exit("drawdown exceeded 25% threshold")
+          PY

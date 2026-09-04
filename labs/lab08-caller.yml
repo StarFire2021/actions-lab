@@ -1,0 +1,40 @@
+# Lab 08c — Reusable workflow (the caller)
+# Copy to: .github/workflows/ci.yml (replaces lab 05)
+#
+# Notice: a job that uses a reusable workflow has NO steps and NO runs-on.
+# The 'uses' replaces the entire job body.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      run-lint: ${{ matrix.python-version == '3.13' }}
+    # 'inherit' passes every secret through. Or name them individually.
+    secrets: inherit
+
+  report:
+    needs: test-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Collected ${{ needs.test-matrix.outputs.test-count }} tests"

@@ -1,0 +1,52 @@
+# Lab 08b — Reusable workflow (the callee)
+# Copy to: .github/workflows/reusable-test.yml
+#
+# A reusable workflow is called at the JOB level by another workflow.
+# It needs on: workflow_call, and it must declare its inputs explicitly.
+
+name: Reusable test
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        required: false
+        default: '3.12'
+      run-lint:
+        type: boolean
+        required: false
+        default: true
+    outputs:
+      test-count:
+        description: Number of tests collected
+        value: ${{ jobs.test.outputs.count }}
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.run.outputs.count }}
+    steps:
+      # Calling our own composite action from lab 08a.
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Run tests
+        id: run
+        run: |
+          pytest
+          COUNT=$(pytest --collect-only -q | tail -1 | grep -oE '^[0-9]+' || echo 0)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Lint
+        if: inputs.run-lint
+        run: ruff check .

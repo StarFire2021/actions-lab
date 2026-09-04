@@ -1,0 +1,84 @@
+# Lab 09 — Environments, approval gates, and tag-triggered releases
+# Copy to: .github/workflows/release.yml
+#
+# Before this works, create an environment named "production" in
+# Settings -> Environments and add yourself as a required reviewer.
+# The deploy job will then pause and wait for a click.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Build but do not publish'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-project
+
+      - name: Verify tag matches package version
+        id: meta
+        run: |
+          PKG=$(python -c "import pricekit; print(pricekit.__version__)")
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            [ "$TAG" = "$PKG" ] || {
+              echo "::error::tag $TAG does not match package version $PKG"
+              exit 1
+            }
+          fi
+
+      - run: pytest
+
+      - name: Build distributions
+        run: |
+          pip install build
+          python -m build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # This is the approval gate.
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/releases
+    permissions:
+      contents: write        # needed to create a release
+      id-token: write        # for OIDC / trusted publishing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - name: What would be published
+        run: ls -la dist/
+
+      - name: Create the GitHub release
+        if: github.ref_type == 'tag' && !inputs.dry-run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "v${{ needs.build.outputs.version }}" \
+            --generate-notes
