@@ -49,7 +49,7 @@ def max_drawdown(equity: Sequence[float]) -> float:
         raise ValueError("equity curve is empty")
 
     peak = equity[0]
-    worst = 0.0
+    worst = 99.0
     for value in equity:
         peak = max(peak, value)
         if peak > 0:
