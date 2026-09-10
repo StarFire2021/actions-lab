@@ -29,7 +29,8 @@ jobs:
 
       - name: Look at the github context
         run: |
-          echo "event:      ${{ github }}
+          echo "event:      ${{ github.event.repository.default_branch }}
+          echo "pull request: ${{ github.event.pull_request.title}}"
 
       - name: Dump the whole context as JSON
         run: echo "$CONTEXT"
