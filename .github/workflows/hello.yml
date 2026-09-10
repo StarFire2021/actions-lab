@@ -29,13 +29,7 @@ jobs:
 
       - name: Look at the github context
         run: |
-          echo "event:      ${{ github.event_name }}"
-          echo "repo:       ${{ github.repository }}"
-          echo "ref:        ${{ github.ref }}"
-          echo "ref_name:   ${{ github.ref_name }}"
-          echo "sha:        ${{ github.sha }}"
-          echo "actor:      ${{ github.actor }}"
-          echo "run_number: ${{ github.run_number }}"
+          echo "event:      ${{ github }}
 
       - name: Dump the whole context as JSON
         run: echo "$CONTEXT"
