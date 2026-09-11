@@ -20,6 +20,7 @@ jobs:
     name: py${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      max-parallel: 2
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -59,7 +60,7 @@ jobs:
     steps:
       - name: Fail if any matrix leg failed
         run: |
-          echo "test result: ${{ needs.test.result }}"
-          [ "${{ needs.test.result }}" = "success" ]
+          echo "test result: ${{ needs.tests.result }}"
+          [ "${{ needs.tests.result }}" = "success" ]
 
 
