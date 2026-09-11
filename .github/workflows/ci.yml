@@ -6,7 +6,7 @@ on:
     paths-ignore: ['**.md']
   pull_request:
     paths-ignore: ['**.md']
-  workflow-dispatch:
+  workflow_dispatch: 
 
 permissions:
   contents: read
@@ -61,5 +61,5 @@ jobs:
         run: |
           echo "test result: ${{ needs.test.result }}"
           [ "${{ needs.test.result }}" = "success" ]
-          
+
 
