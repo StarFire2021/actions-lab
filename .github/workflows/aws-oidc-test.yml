@@ -1,0 +1,26 @@
+name: AWS OIDC test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # allows the job to request the OIDC JWT
+  contents: read    # needed for checkout
+
+jobs:
+  whoami:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4   # check releases for the latest major
+        with:
+          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/github-actions-oidc-test
+          aws-region: us-east-1
+          role-session-name: gh-${{ github.run_id }}
+
+      - name: Prove it worked
+        run: aws sts get-caller-identity
