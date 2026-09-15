@@ -18,7 +18,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4   # check releases for the latest major
         with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/GithubActions
+          role-to-assume: arn:aws:iam::031075156355:role/GithubActions
           aws-region: us-east-1
           role-session-name: gh-${{ github.run_id }}
 
